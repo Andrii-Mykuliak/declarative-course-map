@@ -1,4 +1,29 @@
+import React from "react";
+
 export type Pt = [number, number];
+
+/** SMIL rotation around (cx, cy); steadier than CSS transform-origin inside nested SVG groups. */
+export const Spin = ({ cx = 0, cy = 0, dur, dir = 1 }: { cx?: number; cy?: number; dur: number; dir?: 1 | -1 }) =>
+  React.createElement("animateTransform", {
+    attributeName: "transform",
+    type: "rotate",
+    from: `0 ${cx} ${cy}`,
+    to: `${dir * 360} ${cx} ${cy}`,
+    dur: `${dur}s`,
+    repeatCount: "indefinite",
+  });
+
+/** SMIL rocking between two angles around (cx, cy). */
+export const Rock = ({ cx, cy, a, dur }: { cx: number; cy: number; a: number; dur: number }) =>
+  React.createElement("animateTransform", {
+    attributeName: "transform",
+    type: "rotate",
+    values: `${-a} ${cx} ${cy}; ${a} ${cx} ${cy}; ${-a} ${cx} ${cy}`,
+    dur: `${dur}s`,
+    repeatCount: "indefinite",
+    calcMode: "spline",
+    keySplines: "0.45 0 0.55 1; 0.45 0 0.55 1",
+  });
 
 export const W = 2400;
 export const H = 1600;

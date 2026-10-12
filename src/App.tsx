@@ -34,23 +34,23 @@ const currentWeekOf = (start: string): number | null => {
 };
 
 const KIND_LABEL: Record<Stop["kind"], string> = {
-  start: "Старт",
+  start: "Полярна зоря",
   lecture: "Лекція",
-  lab: "Лабораторна",
+  lab: "Лабораторна робота",
   test: "Контрольна",
   exam: "Іспит",
 };
 
 /** Stops in travel order, grouped by region, for the route list. */
-const ORDER: { region: string; ids: string[] }[] = [
-  { region: "Початок подорожі", ids: ["start", "w1"] },
-  { region: "Долина функцій", ids: ["w2", "lab1", "w3", "w4", "lab2", "w5"] },
-  { region: "Ліс рекурсії", ids: ["w6", "lab3", "w7"] },
-  { region: "Монадні пагорби", ids: ["w8", "lab4", "w9"] },
-  { region: "Міст дракона", ids: ["test"] },
-  { region: "Печери логіки", ids: ["w10", "w11", "lab5"] },
-  { region: "Місто потоків і мов", ids: ["w12", "w13", "lab6", "w14", "w15"] },
-  { region: "Замок іспиту", ids: ["exam"] },
+const ORDER: { region: string; note: string; ids: string[] }[] = [
+  { region: "Полярна зоря", note: "початок подорожі", ids: ["start"] },
+  { region: "Лямбда", note: "функції, типи, лінивість", ids: ["w1", "w2", "lab1", "w3", "w4", "lab2", "w5"] },
+  { region: "Уроборос", note: "рекурсія та потоки даних", ids: ["w6", "lab3", "w7"] },
+  { region: "Туманність монад", note: "функтори, монади, стан", ids: ["w8", "lab4", "w9"] },
+  { region: "Дракон", note: "контрольна робота", ids: ["test"] },
+  { region: "Терези", note: "логічне програмування", ids: ["w10", "w11", "lab5"] },
+  { region: "Ерідан", note: "ріка потоків", ids: ["w12", "w13", "lab6", "w14", "w15"] },
+  { region: "Фортеця", note: "іспит", ids: ["exam"] },
 ];
 
 const BY_ID: Record<string, Stop> = Object.fromEntries([START, ...LECTURES, ...LABS, TEST, EXAM].map((s) => [s.id, s]));
@@ -94,11 +94,14 @@ const RouteList: React.FC<{ onPick: (s: Stop) => void; onClose: () => void }> = 
     <h2>Маршрут курсу</h2>
     {ORDER.map((g) => (
       <section key={g.region}>
-        <div className="region">{g.region}</div>
+        <div className="region">
+          {g.region}
+          <em>{g.note}</em>
+        </div>
         <ol>
           {g.ids.map((id) => {
             const s = BY_ID[id];
-            const mark = s.kind === "lecture" ? s.week : s.kind === "lab" ? s.short.replace("ЛР ", "") : s.kind === "test" ? "⚔" : s.kind === "exam" ? "♛" : "⚑";
+            const mark = s.kind === "lecture" ? s.week : s.kind === "lab" ? s.short.replace("ЛР ", "") : s.kind === "test" ? "✦" : s.kind === "exam" ? "✧" : "✶";
             return (
               <li key={id}>
                 <button onClick={() => onPick(s)}>
@@ -243,7 +246,7 @@ export const App: React.FC = () => {
         />
       )}
       {selected && <Panel s={selected} onClose={() => setSelected(null)} />}
-      <div className="hint">{touch ? "Тягніть карту, зводьте пальці, торкайтеся позначок" : "Тягніть карту, коліщатком наближайте, клацайте по позначках"}</div>
+      <div className="hint">{touch ? "Тягніть небо, зводьте пальці, торкайтеся зір" : "Тягніть небо, коліщатком наближайте, клацайте по зорях"}</div>
     </div>
   );
 };
