@@ -1,24 +1,20 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ReactZoomPanPinchRef, TransformComponent, TransformWrapper } from "react-zoom-pan-pinch";
-import { MapSvg } from "./map/MapSvg";
-import { H, W } from "./map/geo";
-import { EXAM, LABS, LECTURES, SEMESTER_START, START, Stop, TEST } from "./data/course";
+import React, { useMemo } from "react";
+import { COURSE_VNS, EXAM, LABS, LECTURES, SEMESTER_START, Stop, TEST } from "./data/course";
+import { LPNU_CIRCLES, LPNU_PATHS, LPNU_VIEWBOX } from "./data/lpnuLogo";
+import { Emblem, EmblemKind, Sky } from "./Decor";
 
-const Icon: React.FC<{ d: string }> = ({ d }) => (
-  <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-    <path d={d} />
-  </svg>
-);
+type Section = { title: string; note?: string; emblem: EmblemKind; ids: string[] };
 
-const I = {
-  plus: "M12 5v14M5 12h14",
-  minus: "M5 12h14",
-  fit: "M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6zM9 3v15M15 6v15",
-  full: "M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5",
-  list: "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01",
-  close: "M18 6 6 18M6 6l12 12",
-  out: "M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5",
-};
+const SECTIONS: Section[] = [
+  { title: "Функції, типи, лінивість", emblem: "lambda", ids: ["w1", "w2", "lab1", "w3", "w4", "lab2", "w5"] },
+  { title: "Рекурсія та потоки даних", emblem: "ouroboros", ids: ["w6", "lab3", "w7"] },
+  { title: "Функтори, монади, стан", note: "тут живуть монади", emblem: "nebula", ids: ["w8", "lab4", "w9", "test"] },
+  { title: "Логічне програмування", emblem: "scales", ids: ["w10", "w11", "lab5"] },
+  { title: "Сучасна декларативність", emblem: "river", ids: ["w12", "w13", "lab6", "w14", "w15"] },
+  { title: "Підсумковий контроль", emblem: "fortress", ids: ["exam"] },
+];
+
+const BY_ID: Record<string, Stop> = Object.fromEntries([...LECTURES, ...LABS, TEST, EXAM].map((s) => [s.id, s]));
 
 /** Week of the semester for today, or null when the start date is not configured. */
 const currentWeekOf = (start: string): number | null => {
@@ -30,223 +26,118 @@ const currentWeekOf = (start: string): number | null => {
     return null;
   }
   const week = Math.floor((Date.now() - t0) / (7 * 24 * 3600 * 1000)) + 1;
-  return week < 1 ? null : Math.min(16, week);
+  return week >= 1 && week <= 16 ? week : null;
 };
 
-const KIND_LABEL: Record<Stop["kind"], string> = {
-  start: "Полярна зоря",
-  lecture: "Лекція",
-  lab: "Лабораторна робота",
-  test: "Контрольна",
-  exam: "Іспит",
-};
-
-/** Stops in travel order, grouped by region, for the route list. */
-const ORDER: { region: string; note: string; ids: string[] }[] = [
-  { region: "Полярна зоря", note: "початок подорожі", ids: ["start"] },
-  { region: "Лямбда", note: "функції, типи, лінивість", ids: ["w1", "w2", "lab1", "w3", "w4", "lab2", "w5"] },
-  { region: "Уроборос", note: "рекурсія та потоки даних", ids: ["w6", "lab3", "w7"] },
-  { region: "Туманність монад", note: "функтори, монади, стан", ids: ["w8", "lab4", "w9"] },
-  { region: "Дракон", note: "контрольна робота", ids: ["test"] },
-  { region: "Терези", note: "логічне програмування", ids: ["w10", "w11", "lab5"] },
-  { region: "Ерідан", note: "ріка потоків", ids: ["w12", "w13", "lab6", "w14", "w15"] },
-  { region: "Фортеця", note: "іспит", ids: ["exam"] },
-];
-
-const BY_ID: Record<string, Stop> = Object.fromEntries([START, ...LECTURES, ...LABS, TEST, EXAM].map((s) => [s.id, s]));
-
-const Panel: React.FC<{ s: Stop; onClose: () => void }> = ({ s, onClose }) => {
-  const when = s.kind === "lecture" || s.kind === "test" ? `Тиждень ${s.week}` : s.weeks;
-  return (
-    <aside className="panel" role="dialog" aria-label={s.title}>
-      <button className="close" onClick={onClose} aria-label="Закрити">
-        <Icon d={I.close} />
-      </button>
-      <span className={`kind ${s.kind}`}>{KIND_LABEL[s.kind]}</span>
-      <h2>{s.title}</h2>
-      {(when || s.points) && <p className="when">{[when, s.points].filter(Boolean).join(", ")}</p>}
-      <p>{s.desc}</p>
-      <div className="links">
-        {s.vns ? (
-          <a className="link" href={s.vns} target="_blank" rel="noopener noreferrer">
-            Відкрити у ВНС <Icon d={I.out} />
-          </a>
-        ) : (
-          <span className="link off" title="Посилання на ВНС ще не додано">
-            ВНС: посилання згодом
-          </span>
-        )}
-        {s.deck && (
-          <a className="link alt" href={s.deck} target="_blank" rel="noopener noreferrer">
-            Презентація <Icon d={I.out} />
-          </a>
-        )}
-      </div>
-    </aside>
-  );
-};
-
-const RouteList: React.FC<{ onPick: (s: Stop) => void; onClose: () => void }> = ({ onPick, onClose }) => (
-  <nav className="route" aria-label="Маршрут курсу">
-    <button className="close" onClick={onClose} aria-label="Закрити">
-      <Icon d={I.close} />
-    </button>
-    <h2>Маршрут курсу</h2>
-    {ORDER.map((g) => (
-      <section key={g.region}>
-        <div className="region">
-          {g.region}
-          <em>{g.note}</em>
-        </div>
-        <ol>
-          {g.ids.map((id) => {
-            const s = BY_ID[id];
-            const mark = s.kind === "lecture" ? s.week : s.kind === "lab" ? s.short.replace("ЛР ", "") : s.kind === "test" ? "✦" : s.kind === "exam" ? "✧" : "✶";
-            return (
-              <li key={id}>
-                <button onClick={() => onPick(s)}>
-                  <span className={`dot ${s.kind}`}>{mark}</span>
-                  <span>{s.kind === "lecture" ? s.title : s.kind === "lab" ? s.title.replace(/^Лабораторна робота № \d+ /, `${s.short}: `) : s.title}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
-      </section>
-    ))}
-  </nav>
+const Out: React.FC = () => (
+  <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+  </svg>
 );
 
-export const App: React.FC = () => {
-  const [selected, setSelected] = useState<Stop | null>(null);
-  const [listOpen, setListOpen] = useState(false);
-  const zoom = useRef<ReactZoomPanPinchRef>(null);
-  const down = useRef<{ x: number; y: number } | null>(null);
-  const moved = useRef(false);
-  const currentWeek = useMemo(() => currentWeekOf(SEMESTER_START), []);
-
-  const fit = useMemo(() => {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    return { contain: Math.min(vw / W, vh / H), cover: Math.max(vw / W, vh / H), portrait: vh > vw * 1.1 };
-  }, []);
-  const touch = useMemo(() => window.matchMedia("(pointer: coarse)").matches, []);
-
-  const focusOn = useCallback((s: Stop) => {
-    const z = zoom.current;
-    if (!z) {
-      return;
-    }
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const scale = Math.max(z.state.scale, Math.min(1.1, Math.max(vw, vh) / 1500));
-    const offsetX = vw > 640 ? -Math.min(220, vw * 0.18) : 0;
-    const offsetY = vw > 640 ? 0 : -vh * 0.22;
-    z.setTransform(vw / 2 + offsetX - s.x * scale, vh / 2 + offsetY - (s.y - 40) * scale, scale, 600, "easeOut");
-  }, []);
-
-  const pick = useCallback(
-    (s: Stop) => {
-      if (moved.current) {
-        return;
-      }
-      setSelected(s);
-    },
-    [],
-  );
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setSelected(null);
-        setListOpen(false);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  const toggleFullscreen = () => {
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
-    } else if (document.fullscreenEnabled) {
-      document.documentElement.requestFullscreen().catch(() => window.open(location.href, "_blank", "noopener"));
-    } else {
-      window.open(location.href, "_blank", "noopener");
-    }
-  };
-
-  return (
-    <div
-      className="stage"
-      onPointerDownCapture={(e) => {
-        down.current = { x: e.clientX, y: e.clientY };
-        moved.current = false;
-      }}
-      onPointerMoveCapture={(e) => {
-        if (down.current && Math.hypot(e.clientX - down.current.x, e.clientY - down.current.y) > 7) {
-          moved.current = true;
-        }
-      }}
-      onPointerUpCapture={() => {
-        down.current = null;
-      }}
-    >
-      <TransformWrapper
-        ref={zoom}
-        initialScale={fit.portrait ? fit.cover : fit.contain}
-        initialPositionX={fit.portrait ? -(START.x - 70) * fit.cover : undefined}
-        initialPositionY={fit.portrait ? 0 : undefined}
-        minScale={fit.contain * 0.9}
-        maxScale={3.5}
-        centerOnInit={!fit.portrait}
-        limitToBounds
-        wheel={{ step: 0.12 }}
-        doubleClick={{ disabled: true }}
-      >
-        <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }}>
-          <div onClick={() => !moved.current && setSelected(null)}>
-            <MapSvg selected={selected?.id ?? null} onSelect={pick} currentWeek={currentWeek} />
-          </div>
-        </TransformComponent>
-      </TransformWrapper>
-
-      <div className="controls">
-        <button className="btn" onClick={() => setListOpen((o) => !o)} aria-label="Маршрут курсу" title="Маршрут курсу">
-          <Icon d={I.list} />
-        </button>
-        {!touch && (
-          <>
-            <button className="btn" onClick={() => zoom.current?.zoomIn(0.3)} aria-label="Наблизити" title="Наблизити">
-              <Icon d={I.plus} />
-            </button>
-            <button className="btn" onClick={() => zoom.current?.zoomOut(0.3)} aria-label="Віддалити" title="Віддалити">
-              <Icon d={I.minus} />
-            </button>
-          </>
-        )}
-        <button className="btn" onClick={() => zoom.current?.centerView(fit.contain, 500)} aria-label="Уся карта" title="Уся карта">
-          <Icon d={I.fit} />
-        </button>
-        <button className="btn" onClick={toggleFullscreen} aria-label="На весь екран" title="На весь екран">
-          <Icon d={I.full} />
-        </button>
-      </div>
-
-      {listOpen && (
-        <RouteList
-          onClose={() => setListOpen(false)}
-          onPick={(s) => {
-            setSelected(s);
-            focusOn(s);
-            if (window.innerWidth < 900) {
-              setListOpen(false);
-            }
-          }}
-        />
+const Links: React.FC<{ s: Stop }> = ({ s }) =>
+  s.deck || s.vns ? (
+    <div className="links">
+      {s.deck && (
+        <a className="link" href={s.deck} target="_blank" rel="noopener noreferrer">
+          Презентація <Out />
+        </a>
       )}
-      {selected && <Panel s={selected} onClose={() => setSelected(null)} />}
-      <div className="hint">{touch ? "Тягніть небо, зводьте пальці, торкайтеся зір" : "Тягніть небо, коліщатком наближайте, клацайте по зорях"}</div>
+      {s.vns && (
+        <a className="link vns" href={s.vns} target="_blank" rel="noopener noreferrer">
+          ВНС <Out />
+        </a>
+      )}
     </div>
+  ) : null;
+
+const labName = (s: Stop) => s.title.match(/«.*»/)?.[0] ?? s.title;
+
+const Row: React.FC<{ s: Stop; current: boolean }> = ({ s, current }) => {
+  const mark = s.kind === "lecture" ? String(s.week).padStart(2, "0") : s.kind === "lab" ? s.short : s.kind === "test" ? "✦" : "★";
+  const title = s.kind === "lab" ? labName(s) : s.title;
+  const meta =
+    s.kind === "lecture"
+      ? s.desc
+      : s.kind === "lab"
+        ? `${s.weeks}, ${s.points}`
+        : s.kind === "test"
+          ? `Тиждень ${s.week}, ${s.points}. ${s.desc}`
+          : `${s.points}. ${s.desc}`;
+  return (
+    <li className={`row ${s.kind}${current ? " current" : ""}`}>
+      <span className="mark" aria-hidden>
+        {mark}
+      </span>
+      <div className="body">
+        <h3>
+          {s.kind === "lab" && <span className="sr">{s.short} </span>}
+          {s.kind === "lecture" && <span className="sr">Тиждень {s.week}. </span>}
+          {title}
+          {current && <span className="now">цього тижня</span>}
+        </h3>
+        <p>{meta}</p>
+      </div>
+      <Links s={s} />
+    </li>
+  );
+};
+
+export const App: React.FC = () => {
+  const week = useMemo(() => currentWeekOf(SEMESTER_START), []);
+  return (
+    <>
+      <Sky />
+      <div className="page">
+        <header>
+          <div className="ornament" aria-hidden>
+            <span />
+            ✦
+            <span />
+          </div>
+          <h1>Декларативне програмування</h1>
+          <p className="sub">Карта курсу, 2026</p>
+          <p className="facts">15 лекцій, 6 лабораторних робіт, контрольна робота та іспит</p>
+          {COURSE_VNS && (
+            <a className="link course" href={COURSE_VNS} target="_blank" rel="noopener noreferrer">
+              Курс у ВНС <Out />
+            </a>
+          )}
+        </header>
+
+        <main>
+          {SECTIONS.map((sec) => (
+            <section key={sec.title}>
+              <h2>
+                <Emblem kind={sec.emblem} />
+                <span>{sec.title}</span>
+                {sec.note && <em>{sec.note}</em>}
+              </h2>
+              <ol>
+                {sec.ids.map((id) => {
+                  const s = BY_ID[id];
+                  return <Row key={id} s={s} current={week !== null && s.kind === "lecture" && s.week === week} />;
+                })}
+              </ol>
+            </section>
+          ))}
+        </main>
+
+        <footer>
+          <svg className="seal" viewBox={LPNU_VIEWBOX} aria-hidden>
+            {LPNU_PATHS.map((d, i) => (
+              <path key={i} d={d} />
+            ))}
+            {LPNU_CIRCLES.map((c, i) => (
+              <circle key={`c${i}`} cx={c.cx} cy={c.cy} r={c.r} transform={c.transform} />
+            ))}
+          </svg>
+          <div>
+            <p>Уклав ас. каф. ПЗ Микуляк Андрій, 2026</p>
+            <p className="credit">made with Claude Opus 5.5</p>
+          </div>
+        </footer>
+      </div>
+    </>
   );
 };
