@@ -1,12 +1,9 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import "@fontsource/cormorant-garamond/400.css";
-import "@fontsource/cormorant-garamond/400-italic.css";
-import "@fontsource/cormorant-garamond/500-italic.css";
-import "@fontsource/cormorant-garamond/600.css";
-import "@fontsource/cormorant-garamond/600-italic.css";
-import "@fontsource/cormorant-garamond/700.css";
-import "@fontsource/lora/400.css";
+import "@fontsource/yeseva-one/400.css";
+import "@fontsource/kurale/400.css";
+import "@fontsource/marck-script/400.css";
+import "@fontsource/jetbrains-mono/700.css";
 import "./styles.css";
 import { App } from "./App";
 
